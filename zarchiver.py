@@ -65,7 +65,7 @@ def parent_baskets(paths: list[Path]):
    baskets: dict[str, list[Path]] = defaultdict(list)
    for path in paths:
       baskets[path.parent.name].append(path)
-   return list(baskets.values())
+   return dict(baskets)
 
 @app.command()
 def compress_dir(path: Path, basket_size: int = 100):
@@ -86,13 +86,6 @@ def compress_dir(path: Path, basket_size: int = 100):
    # reason that similar photos from the same day will compress better together,
    # and reduce noise from other files.
 
-   # 100 saved per-file is approx: 
-   # - #b1: 0.19MB per-file (PF)
-   # - #b2: 0.21MB PF
-   # - #b3: 0.19MB PF
-   # - #b4: 0.06MB PF
-   # This means for the above, we saved 65MB.
-
    # 25 saved per-file is approx:
    # - #b1: 0.16MB PF   
    # - #b2: 0.13MB PF
@@ -110,19 +103,35 @@ def compress_dir(path: Path, basket_size: int = 100):
    # 0.10
    # 0.03
    # 0.08
+   # 937.41MB -> 875.27MB (@16)
    # This means for the N=25, 16 baskets (4*N=100), we did a sum of: 2.48 * 400 = 248MB saved.
 
    # Based on this above experiment, we're able to get higher compression ratios at
    # N=25, than bringing it up to N=100. I'll now try N=10.
 
+   # N=10.
+   # Recording value at #40.
+   # 937.41MB -> 887.90MB
+
+   # N-sized basket-size.
    for i, file_basket in enumerate(file_baskets(files, basket_size=basket_size)):
       size, original_size = compress_file_basket(file_basket, name=str(i), prefix="100basket")
       saved = original_size - size
       saved_per_file = saved / len(file_basket)
       total_size += size
       total_original_size += original_size
+      logging.info(f"#{i+1}: {total_original_size/(1024*1024):.2f}MB -> {total_size/(1024*1024):.2f}MB ({saved/(1024*1024):.2f}MB saved, {saved_per_file/(1024*1024):.2f}MB per file)")
 
-      logging.info(f"{total_original_size/(1024*1024):.2f}MB -> {total_size/(1024*1024):.2f}MB ({saved/(1024*1024):.2f}MB saved, {saved_per_file/(1024*1024):.2f}MB per file)")
+   # Parent-grouped.
+   for i, (parent_name, file_basket) in enumerate(parent_baskets(files).items()):
+      current_basket_size = len(file_basket)
+      size, original_size = compress_file_basket(file_basket, name=str(i), prefix=f"{parent_name}")
+      saved = original_size - size
+      saved_per_file = saved / current_basket_size
+      total_size += size
+      total_original_size += original_size
+      logging.info(f"#{i+1}: {total_original_size/(1024*1024):.2f}MB -> {total_size/(1024*1024):.2f}MB ({saved/(1024*1024):.2f}MB saved, {saved_per_file/(1024*1024):.2f}MB per file)")
+
 
 if __name__ == "__main__":
    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
