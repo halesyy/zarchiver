@@ -112,25 +112,38 @@ def compress_dir(path: Path, basket_size: int = 100):
    # N=10.
    # Recording value at #40.
    # 937.41MB -> 887.90MB
+   
+   # Parent name grouping:
+   # @426 processed: 994.39MB -> 927.32MB
+   # This means taking the average:
+   # 933.70MB -> 870.72
+   # This is lower - that is clear - but I believe the grouping might be
+   # processing different files, but I do not think so. My hunch is that en-masse,
+   # this methid is going to end up with a much better comparrison ratio.
+   
+   # I will test it at scale.
 
    # N-sized basket-size.
-   for i, file_basket in enumerate(file_baskets(files, basket_size=basket_size)):
-      size, original_size = compress_file_basket(file_basket, name=str(i), prefix="100basket")
-      saved = original_size - size
-      saved_per_file = saved / len(file_basket)
-      total_size += size
-      total_original_size += original_size
-      logging.info(f"#{i+1}: {total_original_size/(1024*1024):.2f}MB -> {total_size/(1024*1024):.2f}MB ({saved/(1024*1024):.2f}MB saved, {saved_per_file/(1024*1024):.2f}MB per file)")
+   # for i, file_basket in enumerate(file_baskets(files, basket_size=basket_size)):
+   #    size, original_size = compress_file_basket(file_basket, name=str(i), prefix="100basket")
+   #    saved = original_size - size
+   #    saved_per_file = saved / len(file_basket)
+   #    total_size += size
+   #    total_original_size += original_size
+   #    logging.info(f"#{i+1}: {total_original_size/(1024*1024):.2f}MB -> {total_size/(1024*1024):.2f}MB ({saved/(1024*1024):.2f}MB saved, {saved_per_file/(1024*1024):.2f}MB per file)")
 
    # Parent-grouped.
-   for i, (parent_name, file_basket) in enumerate(parent_baskets(files).items()):
+   all_parent_baskets = parent_baskets(files).items()
+   total_done = 0
+   for i, (parent_name, file_basket) in enumerate(all_parent_baskets):
       current_basket_size = len(file_basket)
+      total_done += current_basket_size
       size, original_size = compress_file_basket(file_basket, name=str(i), prefix=f"{parent_name}")
       saved = original_size - size
       saved_per_file = saved / current_basket_size
       total_size += size
       total_original_size += original_size
-      logging.info(f"#{i+1}: {total_original_size/(1024*1024):.2f}MB -> {total_size/(1024*1024):.2f}MB ({saved/(1024*1024):.2f}MB saved, {saved_per_file/(1024*1024):.2f}MB per file)")
+      logging.info(f"#{i+1}: {total_original_size/(1024*1024):.2f}MB -> {total_size/(1024*1024):.2f}MB ({saved/(1024*1024):.2f}MB saved, {saved_per_file/(1024*1024):.2f}MB per file) ({total_done} files processed, {i+1} / {len(all_parent_baskets)})")
 
 
 if __name__ == "__main__":
